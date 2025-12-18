@@ -1,0 +1,496 @@
+ApplicationUserController --->
+
+
+package com.example.project.controller;
+
+
+import com.example.project.Model.ApplicationUser;
+import com.example.project.Model.Appointment;
+import com.example.project.Model.Patient;
+import com.example.project.dto.loginresponse;
+import com.example.project.dto.registerresponse;
+import com.example.project.repository.ApplicationUserRepository;
+import com.example.project.repository.AppointmentRepository;
+import com.example.project.repository.PatientRepository;
+import com.example.project.service.ApplicationUserService;
+import com.example.project.service.UserAuthService;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+
+@RestController
+public class ApplicationUserController {
+
+@Autowired
+private ApplicationUserService applr;
+
+@Autowired
+private ApplicationUserRepository applr1;
+
+@Autowired
+private UserAuthService jwtService;
+
+@Autowired
+private PatientRepository prt;
+
+@Autowired
+private AppointmentRepository aprt;
+
+@PostMapping("/register")
+public ResponseEntity<registerresponse> register(@RequestBody ApplicationUser appl){
+return applr.register(appl);
+}
+@PostMapping("/patients/register")
+public ResponseEntity<?> registerp(@RequestBody Patient appl){
+if(prt.findByUsername(appl.patient_Id).isPresent()){
+return ResponseEntity.ok("Booking failure");
+}
+appl.patient_Id="PAT-" + System.currentTimeMillis();
+prt.save(appl);
+return ResponseEntity.ok("Booking successful");
+}
+@PostMapping("/appointment/register")
+public ResponseEntity<?> registerap(@RequestBody Appointment appl){
+if(aprt.findByUsername(appl.booking_id).isPresent()){
+return ResponseEntity.ok("Booking failure");
+}
+appl.booking_id="PAT-" + System.currentTimeMillis();
+aprt.save(appl);
+return ResponseEntity.ok("Booking successful");
+}
+
+    @PostMapping("/signin")
+    public ResponseEntity<loginresponse> login(@RequestBody ApplicationUser request) {
+        Optional<ApplicationUser> userOptional = applr1.findByUseremail(request.useremail);
+
+        if (!userOptional.isPresent()) {
+            return ResponseEntity.ok(new loginresponse("Username or Password is Incorrect."));
+        }
+
+        ApplicationUser user = userOptional.get();
+        if (!user.password.equals(request.password)) {
+            return ResponseEntity.ok(new loginresponse("Username or Password is Incorrect."));
+        }
+
+        String token = jwtService.generateToken(user.useremail);
+        return ResponseEntity.ok(new loginresponse("Authentication successfull!",token,request.user_name));
+    }
+
+    @GetMapping("/viewprofile/{userId}")
+    public ApplicationUser getProfile(@AuthenticationPrincipal ApplicationUser user,@PathVariable String userId) {
+ 
+        return applr1.findByUsername(userId).get();
+    }
+
+    @GetMapping("/patients/list")
+    public ResponseEntity<?> getAllUsers(@AuthenticationPrincipal ApplicationUser admin) {
+ 
+        List<Patient> users = prt.findAll();
+        return ResponseEntity.ok(users);
+    }
+
+    @GetMapping("/patients/view/{userId}")
+    public Patient viewProfile(@AuthenticationPrincipal ApplicationUser user,@PathVariable String userId) {
+ 
+        return prt.findByUsername(userId).get();
+    }
+}
+
+
+
+dto-->loginresponse -->
+
+
+package com.example.project.dto;
+
+public class loginresponse{
+  public String message;
+  public String token;
+  public String id;
+  public loginresponse(String message){
+  this.message=message;
+  }
+  public loginresponse(String message,String token,String id){
+  this.message=message;
+  this.token=token;
+  this.id=id;
+  }
+}
+
+
+
+dto-->registerresponse -->
+
+
+package com.example.project.dto;
+
+public class registerresponse{
+  public String message;
+ public registerresponse(String str){
+ this.message=message;
+ }
+}
+
+
+model-->applicationuser-->
+
+package com.example.project.Model;
+
+import javax.persistence.Entity;
+import javax.persistence.Id;
+
+@Entity
+public class ApplicationUser {
+    @Id
+    public String user_name;
+    public String useremail;
+    public String password;
+    public String user_mobile;
+    public String location;
+
+    public ApplicationUser(String user_name, String useremail, String password, String user_mobile, String location) {
+        super();
+        this.user_name = user_name;
+        this.useremail = useremail;
+        this.password = password;
+        this.user_mobile = user_mobile;
+        this.location = location;
+    }
+
+    public ApplicationUser() {
+        super();
+    }
+
+    public ApplicationUser(String user_name, String password) {
+        super();
+        this.user_name = user_name;
+        this.password = password;
+    }
+
+    //    public Date user_dob;
+
+}
+
+
+model-->appointment-->
+
+
+package com.example.project.Model;
+
+import java.util.Date;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import lombok.Data;
+
+@Entity
+@Data
+public class Appointment {
+    @Id
+    public  String booking_id;
+    private String disease;
+
+    private Date tentativeDate;
+    private String priority;
+
+    private String patientId;
+    private Date bookingTime;
+ 
+    public Appointment( String disease, Date tentativeDate, String priority, String patientId) {
+        super();
+
+        this.disease = disease;
+        this.tentativeDate = tentativeDate;
+        this.priority = priority;
+        this.patientId = patientId;
+
+    }
+      public Appointment(){
+        super();
+      }
+}
+
+
+
+model-->patient-->
+
+package com.example.project.Model;
+
+import java.util.Date;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import lombok.Data;
+
+
+@Entity
+@Data
+public class Patient {
+    @Id
+    public  String patient_Id;
+    private String patient_name;
+    private String patient_email;
+    private String patient_mobile;
+    private Date registeredDate;
+
+
+    public Patient(String patient_name, String patient_email, String patient_mobile, Date registeredDate) {
+        this.patient_name = patient_name;
+        this.patient_email = patient_email;
+        this.patient_mobile = patient_mobile;
+        this.registeredDate = registeredDate;
+    }
+
+    public Patient() {
+        super();
+    }
+
+}
+
+
+Applicationuserrepository-->
+
+
+package com.example.project.repository;
+
+import com.example.project.Model.ApplicationUser;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+public interface ApplicationUserRepository  extends JpaRepository<ApplicationUser, String>{
+
+Optional<ApplicationUser> findByUseremail(String str);
+@Query("SELECT u FROM ApplicationUser u WHERE u.user_name = :username")
+Optional<ApplicationUser> findByUsername(@Param("username") String username);
+
+
+}
+
+
+
+appointmentrepository-->
+
+package com.example.project.repository;
+
+import com.example.project.Model.Appointment;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+public interface AppointmentRepository extends JpaRepository<Appointment,String>{
+@Query("SELECT u FROM Appointment u WHERE u.booking_id = :username")
+Optional<Appointment> findByUsername(@Param("username") String username);
+
+
+}
+
+
+patientrepository-->
+
+package com.example.project.repository;
+
+import com.example.project.Model.Patient;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+public interface PatientRepository extends JpaRepository<Patient,String>{
+
+@Query("SELECT u FROM Patient u WHERE u.patient_Id = :username")
+Optional<Patient> findByUsername(@Param("username") String username);
+
+}
+
+
+apisecurityconfig-->
+
+package com.example.project.security;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+
+
+@Configuration
+@EnableWebSecurity
+@EnableGlobalMethodSecurity(prePostEnabled = true)
+public class ApiSecurityConfig extends WebSecurityConfigurerAdapter {
+
+  private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    public ApiSecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
+
+@Override
+protected void configure(HttpSecurity http) throws Exception {
+    http
+        .csrf().disable()
+        .authorizeRequests()
+            .anyRequest().permitAll()
+        .and()
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+    // no return, configure in place
+}
+}
+
+
+
+jwtauthenticationfilter-->
+
+
+package com.example.project.security;
+
+
+import com.example.project.Model.ApplicationUser;
+import com.example.project.repository.ApplicationUserRepository;
+import com.example.project.service.UserAuthService;
+import java.io.IOException;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+
+
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+@Autowired private UserAuthService jwtService;
+@Autowired private ApplicationUserRepository applr1;
+ @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
+
+         String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        String token = authHeader.substring(7);
+        String username = jwtService.extractEmail(token);
+       if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+             ApplicationUser admin = applr1.findByUseremail(username).orElse(null);
+            if (admin != null) {
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(admin, null, null);
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            }
+       }
+ 
+        filterChain.doFilter(request, response);
+    }
+}
+
+
+Applicationuserservice-->
+
+
+package com.example.project.service;
+
+import com.example.project.Model.ApplicationUser;
+import com.example.project.dto.registerresponse;
+import com.example.project.repository.ApplicationUserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+
+
+
+@Service
+public class ApplicationUserService {
+@Autowired
+private ApplicationUserRepository applr;
+
+public ResponseEntity<registerresponse> register(ApplicationUser appl){
+if(applr.findByUseremail(appl.useremail).isPresent()){
+return ResponseEntity.ok(new registerresponse("Password or username policy failed"));
+}
+
+applr.save(appl);
+return ResponseEntity.ok(new registerresponse("Registration successful"));
+
+}
+
+}
+
+
+UserAuthService -->
+
+
+package com.example.project.service;
+
+import java.util.Base64;
+import org.springframework.stereotype.Service;
+
+@Service
+public class UserAuthService  {
+private final long EXPIRATION_TIME = 86400000;
+
+    // Simple base64 encoding as a fake token (not secure, only for mock/testing)
+    public String generateToken(String email) {
+        String raw = email + ":" + System.currentTimeMillis();
+        return Base64.getEncoder().encodeToString(raw.getBytes());
+    }
+
+    // Extract email from the fake token
+    public String extractEmail(String token) {
+        try {
+            String decoded = new String(Base64.getDecoder().decode(token));
+            return decoded.split(":")[0];
+        } catch (Exception e) {
+            return null;
+        }
+    }
+}
+
+AppointmentService-->
+
+package com.example.project.service;
+
+import com.example.project.Model.Appointment;
+import com.example.project.repository.AppointmentRepository;
+import java.util.ArrayList;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class AppointmentService {
+
+@Autowired
+private AppointmentRepository appl;
+    public void deleteAppointment(String appintId) {
+    appl.deleteById(appintId);
+    }
+
+    public List<Appointment> getAllAppointments() {
+        List<Appointment>app=new ArrayList<>();
+        app=appl.findAll();
+        return  app;
+    }
+}
