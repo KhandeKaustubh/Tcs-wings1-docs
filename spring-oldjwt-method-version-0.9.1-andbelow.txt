@@ -1,0 +1,22 @@
+1️⃣ Use a manually created key, usually via Base64:
+private static final String SECRET = "your-256-bit-secret-your-256-bit-secret";
+
+public String generateToken(String email) {
+    return Jwts.builder()
+            .setSubject(email)
+            .setIssuedAt(new Date())
+            .setExpiration(new Date(System.currentTimeMillis() + 86400000))
+            .signWith(SignatureAlgorithm.HS256, SECRET)
+            .compact();
+}
+
+2️⃣ Parsing tokens uses the old parser:
+public String extractEmail(String token) {
+    return Jwts.parser()
+            .setSigningKey(SECRET)
+            .parseClaimsJws(token)
+            .getBody()
+            .getSubject();
+}
+
+and important to note old security config doesn't work from 3.0.0 and above. And new security config works from 2.7.0 and above.
